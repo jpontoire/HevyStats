@@ -20,7 +20,7 @@ export type SetType = 'normal' | 'warmup' | 'failure' | 'dropset'
 
 /** A full training session. Rows sharing the same (title, start_time) belong to one workout. */
 export interface Workout {
-  id?: number
+  id: number
   title: string
   startTime: Date
   endTime: Date
@@ -29,7 +29,7 @@ export interface Workout {
 
 /** One exercise performed within a workout (e.g. "Développé Couché (Haltère)"). */
 export interface Exercise {
-  id?: number
+  id: number
   workoutId: number
   title: string
   supersetId: number | null
@@ -38,7 +38,7 @@ export interface Exercise {
 
 /** A single logged set for an exercise. */
 export interface WorkoutSet {
-  id?: number
+  id: number
   exerciseId: number
   setIndex: number
   setType: SetType
@@ -47,4 +47,31 @@ export interface WorkoutSet {
   distanceKm: number | null
   durationSeconds: number | null
   rpe: number | null
+}
+
+/* Intermediate shapes produced by the CSV parser, before DB ids are assigned. */
+
+export interface ParsedSet {
+  setIndex: number
+  setType: SetType
+  weightKg: number | null
+  reps: number | null
+  distanceKm: number | null
+  durationSeconds: number | null
+  rpe: number | null
+}
+
+export interface ParsedExercise {
+  title: string
+  supersetId: number | null
+  notes: string
+  sets: ParsedSet[]
+}
+
+export interface ParsedWorkout {
+  title: string
+  startTime: Date
+  endTime: Date
+  description: string
+  exercises: ParsedExercise[]
 }
