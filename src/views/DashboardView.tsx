@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import StatTile from '../components/StatTile'
+import TimeRangeFilter from '../components/TimeRangeFilter'
 import WorkoutCard from '../components/WorkoutCard'
 import { useWorkoutSummaries } from '../hooks/useWorkoutSummaries'
 import { formatCompact, formatDate, formatMonth } from '../utils/format'
 import { computeGlobalStats, type WorkoutSummary } from '../utils/stats'
+import { rangeStart, type TimeRange } from '../utils/timeRange'
 
 interface DashboardViewProps {
   onOpenWorkout: (id: number) => void
@@ -30,11 +33,11 @@ function groupByMonth(summaries: WorkoutSummary[]): MonthGroup[] {
 }
 
 function DashboardView({ onOpenWorkout, onGoToImport }: DashboardViewProps) {
+  const [range, setRange] = useState<TimeRange>('all')
   const summaries = useWorkoutSummaries()
   if (summaries === undefined) return null
 
-  const stats = computeGlobalStats(summaries)
-  if (!stats) {
+  if (summaries.length === 0) {
     return (
       <main className="mx-auto flex max-w-3xl flex-col items-center gap-4 px-6 py-24 text-center">
         <h2 className="text-2xl font-semibold text-neutral-900 dark:text-neutral-100">
@@ -54,35 +57,56 @@ function DashboardView({ onOpenWorkout, onGoToImport }: DashboardViewProps) {
     )
   }
 
+  const start = rangeStart(range)
+  const filtered = start
+    ? summaries.filter(
+        (s) => s.workout.startTime.getTime() >= start.getTime(),
+      )
+    : summaries
+  const stats = computeGlobalStats(filtered)
+
   return (
     <main className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-8">
-      <section
-        aria-label="Overall statistics"
-        className="grid grid-cols-2 gap-3 md:grid-cols-4"
-      >
-        <StatTile
-          label="Workouts"
-          value={String(stats.totalWorkouts)}
-          detail={`${formatDate(stats.firstDate)} → ${formatDate(stats.lastDate)}`}
-        />
-        <StatTile
-          label="Total volume"
-          value={`${formatCompact(stats.totalVolumeKg)} kg`}
-        />
-        <StatTile
-          label="Workouts per week"
-          value={stats.avgPerWeek.toFixed(1)}
-          detail="average over the whole history"
-        />
-        <StatTile
-          label="Longest streak"
-          value={`${stats.longestWeekStreak} wk`}
-          detail="consecutive weeks trained"
-        />
-      </section>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
+          Dashboard
+        </h1>
+        <TimeRangeFilter value={range} onChange={setRange} />
+      </div>
+
+      {!stats ? (
+        <p className="py-12 text-center text-neutral-500 dark:text-neutral-400">
+          No workouts in this period.
+        </p>
+      ) : (
+        <section
+          aria-label="Overall statistics"
+          className="grid grid-cols-2 gap-3 md:grid-cols-4"
+        >
+          <StatTile
+            label="Workouts"
+            value={String(stats.totalWorkouts)}
+            detail={`${formatDate(stats.firstDate)} → ${formatDate(stats.lastDate)}`}
+          />
+          <StatTile
+            label="Total volume"
+            value={`${formatCompact(stats.totalVolumeKg)} kg`}
+          />
+          <StatTile
+            label="Workouts per week"
+            value={stats.avgPerWeek.toFixed(1)}
+            detail="average over the period"
+          />
+          <StatTile
+            label="Longest streak"
+            value={`${stats.longestWeekStreak} wk`}
+            detail="consecutive weeks trained"
+          />
+        </section>
+      )}
 
       <section aria-label="Workout history" className="flex flex-col gap-6">
-        {groupByMonth(summaries).map((group) => (
+        {groupByMonth(filtered).map((group) => (
           <div key={group.label} className="flex flex-col gap-2">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">
               {group.label}

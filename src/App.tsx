@@ -5,11 +5,35 @@ import Header, { type NavTarget } from './components/Header'
 import HomeView from './views/HomeView'
 import DashboardView from './views/DashboardView'
 import WorkoutDetailView from './views/WorkoutDetailView'
+import ExercisesView from './views/ExercisesView'
+import ExerciseDetailView from './views/ExerciseDetailView'
 
 type Route =
   | { name: 'import' }
   | { name: 'dashboard' }
-  | { name: 'workout'; id: number }
+  | { name: 'exercises' }
+  | { name: 'exercise'; title: string }
+  | { name: 'workout'; id: number; from?: Route }
+
+const NAV_ROUTES: Record<NavTarget, Route> = {
+  dashboard: { name: 'dashboard' },
+  exercises: { name: 'exercises' },
+  import: { name: 'import' },
+}
+
+function activeNavFor(route: Route): NavTarget {
+  switch (route.name) {
+    case 'import':
+      return 'import'
+    case 'exercises':
+    case 'exercise':
+      return 'exercises'
+    case 'workout':
+      return route.from ? activeNavFor(route.from) : 'dashboard'
+    default:
+      return 'dashboard'
+  }
+}
 
 function App() {
   const [route, setRoute] = useState<Route | null>(null)
@@ -20,15 +44,12 @@ function App() {
 
   const active: Route =
     route ?? { name: workoutCount > 0 ? 'dashboard' : 'import' }
-  const activeNav: NavTarget = active.name === 'import' ? 'import' : 'dashboard'
 
   return (
     <div className="min-h-screen">
       <Header
-        active={activeNav}
-        onNavigate={(name) =>
-          setRoute(name === 'import' ? { name: 'import' } : { name: 'dashboard' })
-        }
+        active={activeNavFor(active)}
+        onNavigate={(target) => setRoute(NAV_ROUTES[target])}
       />
       {active.name === 'import' && <HomeView />}
       {active.name === 'dashboard' && (
@@ -37,10 +58,24 @@ function App() {
           onGoToImport={() => setRoute({ name: 'import' })}
         />
       )}
+      {active.name === 'exercises' && (
+        <ExercisesView
+          onOpenExercise={(title) => setRoute({ name: 'exercise', title })}
+        />
+      )}
+      {active.name === 'exercise' && (
+        <ExerciseDetailView
+          title={active.title}
+          onBack={() => setRoute({ name: 'exercises' })}
+          onOpenWorkout={(id) =>
+            setRoute({ name: 'workout', id, from: active })
+          }
+        />
+      )}
       {active.name === 'workout' && (
         <WorkoutDetailView
           workoutId={active.id}
-          onBack={() => setRoute({ name: 'dashboard' })}
+          onBack={() => setRoute(active.from ?? { name: 'dashboard' })}
         />
       )}
     </div>

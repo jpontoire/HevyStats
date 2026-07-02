@@ -1,27 +1,13 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import type { WorkoutSet } from '../types/hevy'
-import {
-  formatCompact,
-  formatDate,
-  formatDuration,
-  formatSeconds,
-} from '../utils/format'
+import { formatCompact, formatDate, formatDuration } from '../utils/format'
 import { setVolumeKg } from '../utils/stats'
+import { describeSet } from '../utils/describeSet'
 
 interface WorkoutDetailViewProps {
   workoutId: number
   onBack: () => void
-}
-
-function describeSet(set: WorkoutSet): string {
-  const parts: string[] = []
-  if (set.distanceKm !== null) parts.push(`${set.distanceKm} km`)
-  if (set.durationSeconds !== null)
-    parts.push(formatSeconds(set.durationSeconds))
-  if (set.weightKg !== null) parts.push(`${set.weightKg} kg × ${set.reps ?? 0}`)
-  else if (set.reps !== null) parts.push(`${set.reps} reps`)
-  return parts.join(' · ') || '—'
 }
 
 const SET_TYPE_BADGES: Partial<Record<WorkoutSet['setType'], string>> = {
@@ -85,7 +71,7 @@ function WorkoutDetailView({ workoutId, onBack }: WorkoutDetailViewProps) {
           onClick={onBack}
           className="text-sm text-neutral-500 transition-colors hover:text-neutral-900 dark:text-neutral-400 dark:hover:text-neutral-100"
         >
-          ← Back to dashboard
+          ← Back
         </button>
         <h1 className="mt-2 text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
           {workout.title}
