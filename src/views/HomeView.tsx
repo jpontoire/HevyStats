@@ -8,7 +8,7 @@ function HomeView() {
   const workoutCount = useLiveQuery(() => db.workouts.count())
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center gap-8 px-6 py-12 text-center">
+    <main className="mx-auto flex max-w-3xl flex-col items-center gap-8 px-6 py-16 text-center">
       <header className="flex flex-col gap-4">
         <h1 className="text-4xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
           HevyStats
