@@ -7,17 +7,20 @@ import DashboardView from './views/DashboardView'
 import WorkoutDetailView from './views/WorkoutDetailView'
 import ExercisesView from './views/ExercisesView'
 import ExerciseDetailView from './views/ExerciseDetailView'
+import CoachView from './views/CoachView'
 
 type Route =
   | { name: 'import' }
   | { name: 'dashboard' }
   | { name: 'exercises' }
   | { name: 'exercise'; title: string }
+  | { name: 'coach' }
   | { name: 'workout'; id: number; from?: Route }
 
 const NAV_ROUTES: Record<NavTarget, Route> = {
   dashboard: { name: 'dashboard' },
   exercises: { name: 'exercises' },
+  coach: { name: 'coach' },
   import: { name: 'import' },
 }
 
@@ -25,6 +28,8 @@ function activeNavFor(route: Route): NavTarget {
   switch (route.name) {
     case 'import':
       return 'import'
+    case 'coach':
+      return 'coach'
     case 'exercises':
     case 'exercise':
       return 'exercises'
@@ -58,6 +63,7 @@ function App() {
           onGoToImport={() => setRoute({ name: 'import' })}
         />
       )}
+      {active.name === 'coach' && <CoachView />}
       {active.name === 'exercises' && (
         <ExercisesView
           onOpenExercise={(title) => setRoute({ name: 'exercise', title })}

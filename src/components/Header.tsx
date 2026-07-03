@@ -1,4 +1,4 @@
-export type NavTarget = 'dashboard' | 'exercises' | 'import'
+export type NavTarget = 'dashboard' | 'exercises' | 'coach' | 'import'
 
 interface HeaderProps {
   active: NavTarget
@@ -8,6 +8,7 @@ interface HeaderProps {
 const LINKS: { target: NavTarget; label: string }[] = [
   { target: 'dashboard', label: 'Dashboard' },
   { target: 'exercises', label: 'Exercises' },
+  { target: 'coach', label: 'Coach' },
   { target: 'import', label: 'Import' },
 ]
 
