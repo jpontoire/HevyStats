@@ -17,6 +17,11 @@ export function formatDate(date: Date): string {
   })
 }
 
+/** Short date without year for axis ticks, e.g. "30 Jun". */
+export function formatDateShort(date: Date): string {
+  return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+}
+
 export function formatMonth(date: Date): string {
   return date.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })
 }

@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import StatTile from '../components/StatTile'
+import ProgressionChart from '../components/charts/ProgressionChart'
 import { db } from '../db/db'
 import { describeSet } from '../utils/describeSet'
 import { buildExerciseStats } from '../utils/exerciseStats'
@@ -105,6 +106,8 @@ function ExerciseDetailView({
           />
         )}
       </section>
+
+      <ProgressionChart sessions={stats.sessions} />
 
       <section aria-label="Session history">
         <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-neutral-500 dark:text-neutral-400">

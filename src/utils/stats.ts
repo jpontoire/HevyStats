@@ -68,6 +68,53 @@ export function buildWorkoutSummaries(
     .sort((a, b) => b.workout.startTime.getTime() - a.workout.startTime.getTime())
 }
 
+export interface WeeklyVolume {
+  /** Local midnight of the week's Monday. */
+  weekStart: Date
+  volumeKg: number
+}
+
+/** Monday (local midnight) of the week containing the given date. */
+function weekStartDate(date: Date): Date {
+  const mondayOffset = (date.getDay() + 6) % 7
+  return new Date(
+    date.getFullYear(),
+    date.getMonth(),
+    date.getDate() - mondayOffset,
+  )
+}
+
+/**
+ * Total volume per calendar week, oldest first. Weeks without any workout
+ * are filled with 0 so a time axis over the result is honest.
+ */
+export function weeklyVolumes(summaries: WorkoutSummary[]): WeeklyVolume[] {
+  if (summaries.length === 0) return []
+
+  const byWeek = new Map<number, number>()
+  for (const summary of summaries) {
+    const key = weekStartDate(summary.workout.startTime).getTime()
+    byWeek.set(key, (byWeek.get(key) ?? 0) + summary.volumeKg)
+  }
+
+  const keys = [...byWeek.keys()].sort((a, b) => a - b)
+  const result: WeeklyVolume[] = []
+  let cursor = new Date(keys[0]!)
+  const last = keys[keys.length - 1]!
+  while (cursor.getTime() <= last) {
+    result.push({
+      weekStart: cursor,
+      volumeKg: byWeek.get(cursor.getTime()) ?? 0,
+    })
+    cursor = new Date(
+      cursor.getFullYear(),
+      cursor.getMonth(),
+      cursor.getDate() + 7,
+    )
+  }
+  return result
+}
+
 export interface GlobalStats {
   totalWorkouts: number
   totalVolumeKg: number

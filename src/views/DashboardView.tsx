@@ -2,9 +2,14 @@ import { useState } from 'react'
 import StatTile from '../components/StatTile'
 import TimeRangeFilter from '../components/TimeRangeFilter'
 import WorkoutCard from '../components/WorkoutCard'
+import WeeklyVolumeChart from '../components/charts/WeeklyVolumeChart'
 import { useWorkoutSummaries } from '../hooks/useWorkoutSummaries'
 import { formatCompact, formatDate, formatMonth } from '../utils/format'
-import { computeGlobalStats, type WorkoutSummary } from '../utils/stats'
+import {
+  computeGlobalStats,
+  weeklyVolumes,
+  type WorkoutSummary,
+} from '../utils/stats'
 import { rangeStart, type TimeRange } from '../utils/timeRange'
 
 interface DashboardViewProps {
@@ -104,6 +109,8 @@ function DashboardView({ onOpenWorkout, onGoToImport }: DashboardViewProps) {
           />
         </section>
       )}
+
+      <WeeklyVolumeChart weeks={weeklyVolumes(filtered)} />
 
       <section aria-label="Workout history" className="flex flex-col gap-6">
         {groupByMonth(filtered).map((group) => (
