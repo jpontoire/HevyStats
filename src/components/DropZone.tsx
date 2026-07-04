@@ -5,8 +5,14 @@ interface DropZoneProps {
   disabled?: boolean
 }
 
-function isCsvFile(file: File): boolean {
-  return file.name.toLowerCase().endsWith('.csv') || file.type === 'text/csv'
+function isSupportedFile(file: File): boolean {
+  const name = file.name.toLowerCase()
+  return (
+    name.endsWith('.csv') ||
+    name.endsWith('.json') ||
+    file.type === 'text/csv' ||
+    file.type === 'application/json'
+  )
 }
 
 function DropZone({ onFile, disabled = false }: DropZoneProps) {
@@ -15,7 +21,7 @@ function DropZone({ onFile, disabled = false }: DropZoneProps) {
 
   const handleFile = (file: File | undefined) => {
     if (!file) return
-    if (!isCsvFile(file)) {
+    if (!isSupportedFile(file)) {
       setRejected(true)
       return
     }
@@ -51,14 +57,15 @@ function DropZone({ onFile, disabled = false }: DropZoneProps) {
         } ${disabled ? 'pointer-events-none opacity-50' : ''}`}
       >
         <span className="text-lg font-medium text-neutral-800 dark:text-neutral-200">
-          Drop your <code className="font-mono">workout_data.csv</code> here
+          Drop your <code className="font-mono">workout_data.csv</code> or a
+          HevyStats backup here
         </span>
         <span className="text-sm text-neutral-500 dark:text-neutral-400">
           or click to browse — the file never leaves your browser
         </span>
         <input
           type="file"
-          accept=".csv,text/csv"
+          accept=".csv,.json,text/csv,application/json"
           className="hidden"
           disabled={disabled}
           onChange={handleChange}
@@ -66,7 +73,7 @@ function DropZone({ onFile, disabled = false }: DropZoneProps) {
       </label>
       {rejected && (
         <p className="mt-2 text-sm text-red-600 dark:text-red-400">
-          Please choose a .csv file (the Hevy data export).
+          Please choose a .csv file (Hevy export) or a .json HevyStats backup.
         </p>
       )}
     </div>

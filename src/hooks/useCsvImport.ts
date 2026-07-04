@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react'
 import { parseHevyCsv } from '../utils/parseHevyCsv'
 import { importWorkouts, type ImportSummary } from '../db/importWorkouts'
+import { importBackup } from '../db/backup'
 
 export type ImportStatus = 'idle' | 'importing' | 'success' | 'error'
 
@@ -9,7 +10,17 @@ export interface CsvImportResult extends ImportSummary {
   parseErrors: string[]
 }
 
-/** Parse a Hevy CSV file and persist it into IndexedDB, tracking UI state. */
+function isJsonBackup(file: File): boolean {
+  return (
+    file.name.toLowerCase().endsWith('.json') ||
+    file.type === 'application/json'
+  )
+}
+
+/**
+ * Import a Hevy CSV export or a HevyStats JSON backup into IndexedDB,
+ * tracking UI state. Both paths share the same workout deduplication.
+ */
 export function useCsvImport() {
   const [status, setStatus] = useState<ImportStatus>('idle')
   const [result, setResult] = useState<CsvImportResult | null>(null)
@@ -20,13 +31,18 @@ export function useCsvImport() {
     setResult(null)
     setError(null)
     try {
-      const parsed = await parseHevyCsv(file)
-      const summary = await importWorkouts(parsed.workouts)
-      setResult({
-        ...summary,
-        skippedRows: parsed.skippedRows,
-        parseErrors: parsed.errors,
-      })
+      if (isJsonBackup(file)) {
+        const summary = await importBackup(await file.text())
+        setResult({ ...summary, skippedRows: 0, parseErrors: [] })
+      } else {
+        const parsed = await parseHevyCsv(file)
+        const summary = await importWorkouts(parsed.workouts)
+        setResult({
+          ...summary,
+          skippedRows: parsed.skippedRows,
+          parseErrors: parsed.errors,
+        })
+      }
       setStatus('success')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : String(cause))
