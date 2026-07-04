@@ -2,16 +2,13 @@
 
 Privacy-first, local web dashboard designed to analyze and extend your historical Hevy workout metrics from a simple CSV export, featuring advanced volume tracking and a customizable BYOK Claude AI coach.
 
-## Why
-
-The free tier of [Hevy](https://www.hevyapp.com/) only shows the last 3 months of history. HevyStats works around that limit by reading the full GDPR data export (`workout_data.csv`) that Hevy provides on request, without ever sending that data to a server.
-
 ## How it works
 
 - **100% local-first**: the CSV is parsed in the browser and stored in IndexedDB. Nothing is sent to a backend.
 - **Drag & Drop** the CSV export to import the entire history at once.
 - **Advanced statistics** on strength and volume (progression, estimated 1RM, per-exercise trends...).
 - **BYOK AI chatbot**: the user provides their own Anthropic API key, used only from their browser to query `api.anthropic.com` directly.
+- **Your data stays yours**: export a JSON backup or delete everything in one click.
 
 ## Tech stack
 

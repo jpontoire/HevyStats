@@ -1,11 +1,30 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
+import { deleteAllData, exportBackup } from '../db/backup'
 import DropZone from '../components/DropZone'
 import { useCsvImport } from '../hooks/useCsvImport'
+
+async function downloadBackup() {
+  const blob = await exportBackup()
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `hevystats-backup-${new Date().toISOString().slice(0, 10)}.json`
+  link.click()
+  URL.revokeObjectURL(url)
+}
 
 function HomeView() {
   const { status, result, error, importFile } = useCsvImport()
   const workoutCount = useLiveQuery(() => db.workouts.count())
+
+  const confirmDelete = async () => {
+    const confirmed = window.confirm(
+      'Delete all locally stored workouts? This cannot be undone. ' +
+        'Consider exporting a backup first.',
+    )
+    if (confirmed) await deleteAllData()
+  }
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col items-center gap-8 px-6 py-16 text-center">
@@ -66,6 +85,28 @@ function HomeView() {
           </p>
         )}
       </section>
+
+      {workoutCount !== undefined && workoutCount > 0 && (
+        <section
+          aria-label="Data management"
+          className="flex gap-4 text-sm text-neutral-500 dark:text-neutral-400"
+        >
+          <button
+            type="button"
+            onClick={() => void downloadBackup()}
+            className="underline transition-colors hover:text-neutral-900 dark:hover:text-neutral-100"
+          >
+            Export JSON backup
+          </button>
+          <button
+            type="button"
+            onClick={() => void confirmDelete()}
+            className="underline transition-colors hover:text-red-600 dark:hover:text-red-400"
+          >
+            Delete all my data
+          </button>
+        </section>
+      )}
     </main>
   )
 }
