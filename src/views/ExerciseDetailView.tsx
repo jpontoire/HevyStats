@@ -48,7 +48,7 @@ function ExerciseDetailView({
   const history = [...stats.sessions].reverse()
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8">
+    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <div>
         <button
           type="button"
@@ -57,7 +57,7 @@ function ExerciseDetailView({
         >
           ← Back
         </button>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
+        <h1 className="mt-2 text-2xl font-bold sm:text-3xl tracking-tight text-neutral-900 dark:text-neutral-100">
           {stats.title}
         </h1>
         <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
@@ -117,11 +117,11 @@ function ExerciseDetailView({
           <table className="w-full bg-white text-sm dark:bg-neutral-900">
             <thead>
               <tr className="border-b border-neutral-200 text-left text-neutral-500 dark:border-neutral-800 dark:text-neutral-400">
-                <th className="px-4 py-2 font-medium">Date</th>
-                <th className="px-4 py-2 font-medium">Best set</th>
-                <th className="px-4 py-2 text-right font-medium">e1RM</th>
-                <th className="px-4 py-2 text-right font-medium">Sets</th>
-                <th className="px-4 py-2 text-right font-medium">Volume</th>
+                <th className="px-3 py-2 font-medium sm:px-4">Date</th>
+                <th className="px-3 py-2 font-medium sm:px-4">Best set</th>
+                <th className="px-3 py-2 text-right font-medium sm:px-4">e1RM</th>
+                <th className="px-3 py-2 text-right font-medium sm:px-4">Sets</th>
+                <th className="px-3 py-2 text-right font-medium sm:px-4">Volume</th>
               </tr>
             </thead>
             <tbody className="text-neutral-700 dark:text-neutral-300">
@@ -131,21 +131,21 @@ function ExerciseDetailView({
                   onClick={() => onOpenWorkout(session.workoutId)}
                   className="cursor-pointer border-b border-neutral-100 transition-colors last:border-0 hover:bg-neutral-50 dark:border-neutral-800/60 dark:hover:bg-neutral-800/40"
                 >
-                  <td className="px-4 py-2 whitespace-nowrap">
+                  <td className="px-3 py-2 whitespace-nowrap sm:px-4">
                     {formatDate(session.date)}
                   </td>
-                  <td className="px-4 py-2 whitespace-nowrap">
+                  <td className="px-3 py-2 whitespace-nowrap sm:px-4">
                     {session.topSet ? describeSet(session.topSet) : '—'}
                   </td>
-                  <td className="px-4 py-2 text-right tabular-nums">
+                  <td className="px-3 py-2 text-right tabular-nums sm:px-4">
                     {session.bestE1rm !== null
                       ? `${Math.round(session.bestE1rm)} kg`
                       : '—'}
                   </td>
-                  <td className="px-4 py-2 text-right tabular-nums">
+                  <td className="px-3 py-2 text-right tabular-nums sm:px-4">
                     {session.setCount}
                   </td>
-                  <td className="px-4 py-2 text-right tabular-nums">
+                  <td className="px-3 py-2 text-right tabular-nums sm:px-4">
                     {session.volumeKg > 0
                       ? `${formatCompact(session.volumeKg)} kg`
                       : '—'}

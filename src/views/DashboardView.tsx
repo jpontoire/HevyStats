@@ -71,7 +71,7 @@ function DashboardView({ onOpenWorkout, onGoToImport }: DashboardViewProps) {
   const stats = computeGlobalStats(filtered)
 
   return (
-    <main className="mx-auto flex max-w-5xl flex-col gap-8 px-6 py-8">
+    <main className="mx-auto flex max-w-5xl flex-col gap-8 px-4 py-6 sm:px-6 sm:py-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
           Dashboard

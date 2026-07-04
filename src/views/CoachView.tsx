@@ -85,7 +85,7 @@ function CoachView() {
   }
 
   return (
-    <main className="mx-auto flex h-[calc(100vh-3.5rem)] max-w-3xl flex-col px-6 py-4">
+    <main className="mx-auto flex h-full max-w-3xl flex-col px-4 py-4 sm:px-6">
       <div className="mb-2 flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
           Coach

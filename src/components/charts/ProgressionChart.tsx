@@ -9,6 +9,7 @@ import {
 } from 'recharts'
 import ChartTooltip from './ChartTooltip'
 import { formatDate, formatDateShort, formatSeconds } from '../../utils/format'
+import { useElementWidth } from '../../hooks/useElementWidth'
 import type { ExerciseSession } from '../../utils/exerciseStats'
 
 interface ProgressionChartProps {
@@ -67,6 +68,7 @@ function buildSeries(sessions: ExerciseSession[]): Series | null {
 }
 
 function ProgressionChart({ sessions }: ProgressionChartProps) {
+  const { ref, width } = useElementWidth<HTMLElement>()
   const series = buildSeries(sessions)
   if (!series) return null
 
@@ -76,9 +78,14 @@ function ProgressionChart({ sessions }: ProgressionChartProps) {
     stroke: 'var(--chart-surface)',
     strokeWidth: 2,
   }
+  // On narrow screens crowded markers melt into a blob — keep them only
+  // when each point gets enough horizontal room; the line carries the shape.
+  const showDots = width > 0 && width / series.points.length >= 12
+  const tickCount = width > 0 && width < 440 ? 4 : 6
 
   return (
     <section
+      ref={ref}
       aria-label={`${series.title} over time`}
       className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900"
     >
@@ -107,7 +114,7 @@ function ProgressionChart({ sessions }: ProgressionChartProps) {
             tick={{ fill: 'var(--chart-muted)', fontSize: 11 }}
             tickLine={false}
             axisLine={{ stroke: 'var(--chart-grid)' }}
-            tickCount={6}
+            tickCount={tickCount}
           />
           <YAxis
             domain={['auto', 'auto']}
@@ -139,7 +146,7 @@ function ProgressionChart({ sessions }: ProgressionChartProps) {
             strokeWidth={2}
             strokeLinecap="round"
             strokeLinejoin="round"
-            dot={series.points.length <= 48 ? dot : false}
+            dot={showDots ? dot : false}
             activeDot={{ ...dot, r: 5 }}
           />
         </LineChart>

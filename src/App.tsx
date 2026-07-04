@@ -51,11 +51,14 @@ function App() {
     route ?? { name: workoutCount > 0 ? 'dashboard' : 'import' }
 
   return (
-    <div className="min-h-screen">
+    // h-dvh + inner scroll keeps the chat layout correct under mobile
+    // browser UI (URL bar) and gives every view a stable viewport height
+    <div className="flex h-dvh flex-col">
       <Header
         active={activeNavFor(active)}
         onNavigate={(target) => setRoute(NAV_ROUTES[target])}
       />
+      <div className="min-h-0 flex-1 overflow-y-auto">
       {active.name === 'import' && <HomeView />}
       {active.name === 'dashboard' && (
         <DashboardView
@@ -84,6 +87,7 @@ function App() {
           onBack={() => setRoute(active.from ?? { name: 'dashboard' })}
         />
       )}
+      </div>
     </div>
   )
 }

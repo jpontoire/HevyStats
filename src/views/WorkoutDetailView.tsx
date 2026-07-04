@@ -64,7 +64,7 @@ function WorkoutDetailView({ workoutId, onBack }: WorkoutDetailViewProps) {
   )
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-8">
+    <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
       <div>
         <button
           type="button"
@@ -73,7 +73,7 @@ function WorkoutDetailView({ workoutId, onBack }: WorkoutDetailViewProps) {
         >
           ← Back
         </button>
-        <h1 className="mt-2 text-3xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
+        <h1 className="mt-2 text-2xl font-bold sm:text-3xl tracking-tight text-neutral-900 dark:text-neutral-100">
           {workout.title}
         </h1>
         <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">

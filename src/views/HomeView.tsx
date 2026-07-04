@@ -27,7 +27,7 @@ function HomeView() {
   }
 
   return (
-    <main className="mx-auto flex max-w-3xl flex-col items-center gap-8 px-6 py-16 text-center">
+    <main className="mx-auto flex max-w-3xl flex-col items-center gap-8 px-4 py-10 sm:px-6 sm:py-16 text-center">
       <header className="flex flex-col gap-4">
         <h1 className="text-4xl font-bold tracking-tight text-neutral-900 dark:text-neutral-100">
           HevyStats
