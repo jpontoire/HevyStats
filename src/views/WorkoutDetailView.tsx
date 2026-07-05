@@ -1,5 +1,9 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
+import MuscleSetsChart from '../components/charts/MuscleSetsChart'
+import type { MuscleGroupStat } from '../hooks/useMuscleStats'
+import { makeMuscleResolver } from '../muscles/resolve'
+import { MUSCLE_LABELS } from '../muscles/taxonomy'
 import type { WorkoutSet } from '../types/hevy'
 import { formatCompact, formatDate, formatDuration } from '../utils/format'
 import { setVolumeKg } from '../utils/stats'
@@ -39,7 +43,8 @@ function WorkoutDetailView({ workoutId, onBack }: WorkoutDetailViewProps) {
     for (const list of setsByExercise.values()) {
       list.sort((a, b) => a.setIndex - b.setIndex)
     }
-    return { workout, exercises, setsByExercise }
+    const muscleOverrides = await db.muscleMap.toArray()
+    return { workout, exercises, setsByExercise, muscleOverrides }
   }, [workoutId])
 
   if (data === undefined) return null
@@ -53,9 +58,23 @@ function WorkoutDetailView({ workoutId, onBack }: WorkoutDetailViewProps) {
     )
   }
 
-  const { workout, exercises, setsByExercise } = data
+  const { workout, exercises, setsByExercise, muscleOverrides } = data
   const allSets = [...setsByExercise.values()].flat()
   const volumeKg = allSets.reduce((total, set) => total + setVolumeKg(set), 0)
+
+  const resolveMuscle = makeMuscleResolver(muscleOverrides)
+  const perGroup = new Map<string, MuscleGroupStat>()
+  for (const exercise of exercises) {
+    const group = resolveMuscle(exercise.title)
+    for (const set of setsByExercise.get(exercise.id) ?? []) {
+      if (set.setType === 'warmup') continue
+      const stat = perGroup.get(group) ?? { group, sets: 0, volumeKg: 0 }
+      stat.sets++
+      stat.volumeKg += setVolumeKg(set)
+      perGroup.set(group, stat)
+    }
+  }
+  const muscleGroups = [...perGroup.values()].sort((a, b) => b.sets - a.sets)
   const durationMinutes = Math.max(
     0,
     Math.round(
@@ -86,6 +105,23 @@ function WorkoutDetailView({ workoutId, onBack }: WorkoutDetailViewProps) {
           </p>
         )}
       </div>
+
+      {muscleGroups.length >= 2 ? (
+        <MuscleSetsChart
+          groups={muscleGroups}
+          title="Muscle groups this session"
+        />
+      ) : (
+        muscleGroups[0] && (
+          <p className="text-sm text-neutral-500 dark:text-neutral-400">
+            All working sets targeted{' '}
+            <span className="font-medium text-neutral-900 dark:text-neutral-100">
+              {MUSCLE_LABELS[muscleGroups[0].group]}
+            </span>
+            .
+          </p>
+        )
+      )}
 
       <section className="flex flex-col gap-4">
         {exercises.map((exercise) => (
