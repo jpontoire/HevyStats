@@ -1,9 +1,8 @@
-import { useCallback, useRef, useState } from 'react'
-import Anthropic from '@anthropic-ai/sdk'
+import { useCallback, useSyncExternalStore } from 'react'
 import { db } from '../db/db'
 import { formatCoachContext } from '../utils/coachContext'
-
-const MODEL = 'claude-opus-4-8'
+import { streamChat } from '../llm/streamChat'
+import type { ChatTurn, LlmConfig } from '../llm/types'
 
 const SYSTEM_PROMPT = `You are HevyStats Coach, a strength training assistant built into HevyStats, a local-first dashboard that analyzes the user's full Hevy workout history.
 
@@ -17,12 +16,41 @@ Rules:
 
 `
 
-export interface ChatMessage {
-  role: 'user' | 'assistant'
-  content: string
+export type ChatMessage = ChatTurn
+export type ChatStatus = 'idle' | 'streaming' | 'error'
+
+export interface ChatState {
+  messages: ChatMessage[]
+  status: ChatStatus
+  error: string | null
 }
 
-export type ChatStatus = 'idle' | 'streaming' | 'error'
+/*
+ * The conversation lives in a module-level store, not in component state:
+ * the Coach view unmounts on navigation, and the chat must survive it
+ * (including a reply that is still streaming in the background).
+ */
+let state: ChatState = { messages: [], status: 'idle', error: null }
+// Stats summary built once per conversation and kept stable so the prompt
+// prefix stays byte-identical across turns (prompt caching).
+let systemPrompt: string | null = null
+// Bumped on reset so an in-flight reply can't resurrect a cleared chat
+let generation = 0
+const listeners = new Set<() => void>()
+
+function setState(partial: Partial<ChatState>) {
+  state = { ...state, ...partial }
+  for (const listener of listeners) listener()
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
+function getSnapshot(): ChatState {
+  return state
+}
 
 async function buildSystemPrompt(): Promise<string> {
   const [workouts, exercises, sets] = await Promise.all([
@@ -33,111 +61,77 @@ async function buildSystemPrompt(): Promise<string> {
   return SYSTEM_PROMPT + formatCoachContext(workouts, exercises, sets)
 }
 
-function describeError(cause: unknown): string {
-  if (cause instanceof Anthropic.AuthenticationError) {
-    return 'Invalid API key. Check it in the settings below.'
+async function sendMessage(config: LlmConfig, text: string): Promise<void> {
+  const trimmed = text.trim()
+  if (!trimmed || state.status === 'streaming') return
+  const gen = generation
+
+  const history: ChatMessage[] = [
+    ...state.messages,
+    { role: 'user', content: trimmed },
+  ]
+  setState({
+    messages: [...history, { role: 'assistant', content: '' }],
+    status: 'streaming',
+    error: null,
+  })
+
+  try {
+    systemPrompt ??= await buildSystemPrompt()
+
+    const answer = await streamChat({
+      config,
+      system: systemPrompt,
+      messages: history,
+      onDelta: (delta) => {
+        if (gen !== generation) return
+        const messages = state.messages
+        const last = messages[messages.length - 1]
+        if (!last || last.role !== 'assistant') return
+        setState({
+          messages: [
+            ...messages.slice(0, -1),
+            { role: 'assistant', content: last.content + delta },
+          ],
+        })
+      },
+    })
+
+    if (gen !== generation) return
+    setState({
+      messages: [...history, { role: 'assistant', content: answer }],
+      status: 'idle',
+    })
+  } catch (cause) {
+    if (gen !== generation) return
+    // Drop the empty assistant placeholder but keep the user's message
+    setState({
+      messages: history,
+      status: 'error',
+      error: cause instanceof Error ? cause.message : String(cause),
+    })
   }
-  if (cause instanceof Anthropic.RateLimitError) {
-    return 'Rate limit reached on your Anthropic account. Try again in a minute.'
-  }
-  if (cause instanceof Anthropic.APIConnectionError) {
-    return 'Could not reach the Anthropic API. Check your connection.'
-  }
-  if (cause instanceof Anthropic.APIError) {
-    return `Anthropic API error (${cause.status}): ${cause.message}`
-  }
-  return cause instanceof Error ? cause.message : String(cause)
 }
 
-/** Streaming BYOK chat with the coach. The key never leaves the browser. */
-export function useChat(apiKey: string) {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [status, setStatus] = useState<ChatStatus>('idle')
-  const [error, setError] = useState<string | null>(null)
-  // The stats summary is built once per conversation and kept stable so the
-  // prompt prefix stays byte-identical across turns (prompt caching).
-  const systemRef = useRef<string | null>(null)
-  const messagesRef = useRef<ChatMessage[]>([])
+function resetChat(): void {
+  generation++
+  systemPrompt = null
+  setState({ messages: [], status: 'idle', error: null })
+}
 
-  const send = useCallback(
-    async (text: string) => {
-      const trimmed = text.trim()
-      if (!trimmed || !apiKey) return
-
-      setStatus('streaming')
-      setError(null)
-
-      const history: ChatMessage[] = [
-        ...messagesRef.current,
-        { role: 'user', content: trimmed },
-      ]
-      messagesRef.current = history
-      setMessages([...history, { role: 'assistant', content: '' }])
-
-      try {
-        systemRef.current ??= await buildSystemPrompt()
-
-        // BYOK: the user's own key, sent only to api.anthropic.com
-        const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true })
-        const stream = client.messages.stream({
-          model: MODEL,
-          max_tokens: 64000,
-          thinking: { type: 'adaptive' },
-          system: [
-            {
-              type: 'text',
-              text: systemRef.current,
-              cache_control: { type: 'ephemeral' },
-            },
-          ],
-          messages: history.map((m) => ({ role: m.role, content: m.content })),
-        })
-
-        stream.on('text', (delta) => {
-          setMessages((prev) => {
-            const last = prev[prev.length - 1]
-            if (!last || last.role !== 'assistant') return prev
-            return [
-              ...prev.slice(0, -1),
-              { role: 'assistant', content: last.content + delta },
-            ]
-          })
-        })
-
-        const final = await stream.finalMessage()
-        const answer = final.content
-          .filter((block) => block.type === 'text')
-          .map((block) => block.text)
-          .join('')
-
-        if (final.stop_reason === 'refusal' && !answer) {
-          throw new Error('The model declined to answer this request.')
-        }
-
-        messagesRef.current = [
-          ...history,
-          { role: 'assistant', content: answer },
-        ]
-        setMessages(messagesRef.current)
-        setStatus('idle')
-      } catch (cause) {
-        // Drop the empty assistant placeholder but keep the user's message
-        messagesRef.current = history
-        setMessages(history)
-        setError(describeError(cause))
-        setStatus('error')
-      }
-    },
-    [apiKey],
+/** Streaming BYOK chat with the coach; survives view unmounts. */
+export function useChat(config: LlmConfig | null) {
+  const { messages, status, error } = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
   )
 
-  const reset = useCallback(() => {
-    messagesRef.current = []
-    setMessages([])
-    setStatus('idle')
-    setError(null)
-    systemRef.current = null
-  }, [])
+  const send = useCallback(
+    (text: string) => {
+      if (config) void sendMessage(config, text)
+    },
+    [config],
+  )
 
-  return { messages, status, error, send, reset }
+  return { messages, status, error, send, reset: resetChat }
 }
