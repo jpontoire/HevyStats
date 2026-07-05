@@ -173,7 +173,7 @@ function CoachView() {
   const submit = (text: string) => {
     if (status === 'streaming' || !text.trim()) return
     setInput('')
-    void send(text)
+    send(text)
   }
 
   if (!config || editingSettings) {

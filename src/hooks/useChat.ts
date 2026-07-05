@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useSyncExternalStore } from 'react'
 import { db } from '../db/db'
 import { formatCoachContext } from '../utils/coachContext'
 import { streamChat } from '../llm/streamChat'
@@ -19,6 +19,39 @@ Rules:
 export type ChatMessage = ChatTurn
 export type ChatStatus = 'idle' | 'streaming' | 'error'
 
+export interface ChatState {
+  messages: ChatMessage[]
+  status: ChatStatus
+  error: string | null
+}
+
+/*
+ * The conversation lives in a module-level store, not in component state:
+ * the Coach view unmounts on navigation, and the chat must survive it
+ * (including a reply that is still streaming in the background).
+ */
+let state: ChatState = { messages: [], status: 'idle', error: null }
+// Stats summary built once per conversation and kept stable so the prompt
+// prefix stays byte-identical across turns (prompt caching).
+let systemPrompt: string | null = null
+// Bumped on reset so an in-flight reply can't resurrect a cleared chat
+let generation = 0
+const listeners = new Set<() => void>()
+
+function setState(partial: Partial<ChatState>) {
+  state = { ...state, ...partial }
+  for (const listener of listeners) listener()
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener)
+  return () => listeners.delete(listener)
+}
+
+function getSnapshot(): ChatState {
+  return state
+}
+
 async function buildSystemPrompt(): Promise<string> {
   const [workouts, exercises, sets] = await Promise.all([
     db.workouts.toArray(),
@@ -28,74 +61,77 @@ async function buildSystemPrompt(): Promise<string> {
   return SYSTEM_PROMPT + formatCoachContext(workouts, exercises, sets)
 }
 
-/** Streaming BYOK chat with the coach, provider-agnostic. */
+async function sendMessage(config: LlmConfig, text: string): Promise<void> {
+  const trimmed = text.trim()
+  if (!trimmed || state.status === 'streaming') return
+  const gen = generation
+
+  const history: ChatMessage[] = [
+    ...state.messages,
+    { role: 'user', content: trimmed },
+  ]
+  setState({
+    messages: [...history, { role: 'assistant', content: '' }],
+    status: 'streaming',
+    error: null,
+  })
+
+  try {
+    systemPrompt ??= await buildSystemPrompt()
+
+    const answer = await streamChat({
+      config,
+      system: systemPrompt,
+      messages: history,
+      onDelta: (delta) => {
+        if (gen !== generation) return
+        const messages = state.messages
+        const last = messages[messages.length - 1]
+        if (!last || last.role !== 'assistant') return
+        setState({
+          messages: [
+            ...messages.slice(0, -1),
+            { role: 'assistant', content: last.content + delta },
+          ],
+        })
+      },
+    })
+
+    if (gen !== generation) return
+    setState({
+      messages: [...history, { role: 'assistant', content: answer }],
+      status: 'idle',
+    })
+  } catch (cause) {
+    if (gen !== generation) return
+    // Drop the empty assistant placeholder but keep the user's message
+    setState({
+      messages: history,
+      status: 'error',
+      error: cause instanceof Error ? cause.message : String(cause),
+    })
+  }
+}
+
+function resetChat(): void {
+  generation++
+  systemPrompt = null
+  setState({ messages: [], status: 'idle', error: null })
+}
+
+/** Streaming BYOK chat with the coach; survives view unmounts. */
 export function useChat(config: LlmConfig | null) {
-  const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [status, setStatus] = useState<ChatStatus>('idle')
-  const [error, setError] = useState<string | null>(null)
-  // The stats summary is built once per conversation and kept stable so the
-  // prompt prefix stays byte-identical across turns (prompt caching).
-  const systemRef = useRef<string | null>(null)
-  const messagesRef = useRef<ChatMessage[]>([])
+  const { messages, status, error } = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+  )
 
   const send = useCallback(
-    async (text: string) => {
-      const trimmed = text.trim()
-      if (!trimmed || !config) return
-
-      setStatus('streaming')
-      setError(null)
-
-      const history: ChatMessage[] = [
-        ...messagesRef.current,
-        { role: 'user', content: trimmed },
-      ]
-      messagesRef.current = history
-      setMessages([...history, { role: 'assistant', content: '' }])
-
-      try {
-        systemRef.current ??= await buildSystemPrompt()
-
-        const answer = await streamChat({
-          config,
-          system: systemRef.current,
-          messages: history,
-          onDelta: (delta) => {
-            setMessages((prev) => {
-              const last = prev[prev.length - 1]
-              if (!last || last.role !== 'assistant') return prev
-              return [
-                ...prev.slice(0, -1),
-                { role: 'assistant', content: last.content + delta },
-              ]
-            })
-          },
-        })
-
-        messagesRef.current = [
-          ...history,
-          { role: 'assistant', content: answer },
-        ]
-        setMessages(messagesRef.current)
-        setStatus('idle')
-      } catch (cause) {
-        // Drop the empty assistant placeholder but keep the user's message
-        messagesRef.current = history
-        setMessages(history)
-        setError(cause instanceof Error ? cause.message : String(cause))
-        setStatus('error')
-      }
+    (text: string) => {
+      if (config) void sendMessage(config, text)
     },
     [config],
   )
 
-  const reset = useCallback(() => {
-    messagesRef.current = []
-    setMessages([])
-    setStatus('idle')
-    setError(null)
-    systemRef.current = null
-  }, [])
-
-  return { messages, status, error, send, reset }
+  return { messages, status, error, send, reset: resetChat }
 }
