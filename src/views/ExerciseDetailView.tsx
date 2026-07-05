@@ -2,6 +2,7 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import StatTile from '../components/StatTile'
 import ProgressionChart from '../components/charts/ProgressionChart'
 import { db } from '../db/db'
+import { computeTrends } from '../utils/progressTrends'
 import { describeSet } from '../utils/describeSet'
 import { buildExerciseStats } from '../utils/exerciseStats'
 import {
@@ -46,6 +47,7 @@ function ExerciseDetailView({
   }
 
   const history = [...stats.sessions].reverse()
+  const trend = computeTrends([stats])[0]
 
   return (
     <main className="mx-auto flex max-w-3xl flex-col gap-6 px-4 py-6 sm:px-6 sm:py-8">
@@ -65,6 +67,19 @@ function ExerciseDetailView({
           {stats.totalSets} working sets · last{' '}
           {formatDate(stats.lastPerformed)}
         </p>
+        {trend && trend.direction !== 'flat' && (
+          <p
+            className={`mt-1 text-sm font-medium ${
+              trend.direction === 'up'
+                ? 'text-green-700 dark:text-green-400'
+                : 'text-red-600 dark:text-red-400'
+            }`}
+          >
+            {trend.direction === 'up' ? '↑' : '↓'} e1RM{' '}
+            {trend.deltaKg > 0 ? '+' : ''}
+            {trend.deltaKg} kg over the last 30 days (vs previous 90)
+          </p>
+        )}
       </div>
 
       <section

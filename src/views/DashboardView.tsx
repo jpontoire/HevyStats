@@ -1,8 +1,11 @@
 import { useState } from 'react'
+import ProgressTrends from '../components/ProgressTrends'
+import RecentPrs from '../components/RecentPrs'
 import StatTile from '../components/StatTile'
 import TimeRangeFilter from '../components/TimeRangeFilter'
 import WorkoutCard from '../components/WorkoutCard'
 import WeeklyVolumeChart from '../components/charts/WeeklyVolumeChart'
+import { useProgressInsights } from '../hooks/useProgressInsights'
 import { useWorkoutSummaries } from '../hooks/useWorkoutSummaries'
 import { formatCompact, formatDate, formatMonth } from '../utils/format'
 import {
@@ -40,6 +43,7 @@ function groupByMonth(summaries: WorkoutSummary[]): MonthGroup[] {
 function DashboardView({ onOpenWorkout, onGoToImport }: DashboardViewProps) {
   const [range, setRange] = useState<TimeRange>('all')
   const summaries = useWorkoutSummaries()
+  const insights = useProgressInsights(range)
   if (summaries === undefined) return null
 
   if (summaries.length === 0) {
@@ -111,6 +115,13 @@ function DashboardView({ onOpenWorkout, onGoToImport }: DashboardViewProps) {
       )}
 
       <WeeklyVolumeChart weeks={weeklyVolumes(filtered)} />
+
+      {insights && (
+        <div className="grid gap-6 md:grid-cols-2">
+          <RecentPrs events={insights.prs} />
+          <ProgressTrends trends={insights.trends} />
+        </div>
+      )}
 
       <section aria-label="Workout history" className="flex flex-col gap-6">
         {groupByMonth(filtered).map((group) => (
