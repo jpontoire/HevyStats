@@ -14,11 +14,15 @@ import { MUSCLE_LABELS } from '../../muscles/taxonomy'
 
 interface MuscleSetsChartProps {
   groups: MuscleGroupStat[]
+  title?: string
 }
 
 const ROW_HEIGHT = 34
 
-function MuscleSetsChart({ groups }: MuscleSetsChartProps) {
+function MuscleSetsChart({
+  groups,
+  title = 'Working sets by muscle group',
+}: MuscleSetsChartProps) {
   if (groups.length === 0) return null
 
   const data = groups.map((g) => ({
@@ -28,11 +32,11 @@ function MuscleSetsChart({ groups }: MuscleSetsChartProps) {
 
   return (
     <section
-      aria-label="Working sets by muscle group"
+      aria-label={title}
       className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900"
     >
       <h2 className="mb-3 text-sm font-semibold text-neutral-900 dark:text-neutral-100">
-        Working sets by muscle group
+        {title}
       </h2>
       <ResponsiveContainer
         width="100%"
