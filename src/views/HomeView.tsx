@@ -2,7 +2,11 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { deleteAllData, exportBackup } from '../db/backup'
 import DropZone from '../components/DropZone'
+import StatTile from '../components/StatTile'
+import ProgressionChart from '../components/charts/ProgressionChart'
+import WeeklyVolumeChart from '../components/charts/WeeklyVolumeChart'
 import { useCsvImport } from '../hooks/useCsvImport'
+import { SAMPLE_PROGRESSION, SAMPLE_WEEKLY_VOLUME } from '../utils/sampleData'
 
 async function downloadBackup() {
   const blob = await exportBackup()
@@ -40,6 +44,13 @@ function HomeView() {
       </header>
 
       <DropZone onFile={importFile} disabled={status === 'importing'} />
+
+      <p className="max-w-xl text-xs text-neutral-400 dark:text-neutral-500">
+        To get your export: in the Hevy app, go to Profile → Settings → Export
+        &amp; Import Data → Export Workouts. You'll receive a{' '}
+        <code className="font-mono">workout_data.csv</code> file with your full
+        history — even sessions the free app no longer shows.
+      </p>
 
       <section aria-live="polite" className="flex flex-col gap-2">
         {status === 'importing' && (
@@ -85,6 +96,47 @@ function HomeView() {
           </p>
         )}
       </section>
+
+      {workoutCount === 0 && (
+        <section
+          aria-label="Feature preview"
+          className="flex w-full flex-col gap-4 text-left"
+        >
+          <div className="text-center">
+            <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100">
+              What you'll get
+            </h2>
+            <p className="mt-1 text-sm text-neutral-500 dark:text-neutral-400">
+              A preview with sample data — import your export to see your own
+              numbers.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+            <StatTile label="Workouts" value="112" detail="full history" />
+            <StatTile label="Total volume" value="540.7K kg" />
+            <StatTile
+              label="Best bench e1RM"
+              value="74 kg"
+              detail="+16 kg in 3 months"
+            />
+            <StatTile
+              label="Longest streak"
+              value="27 wk"
+              detail="consecutive weeks trained"
+            />
+          </div>
+
+          <ProgressionChart sessions={SAMPLE_PROGRESSION} />
+          <WeeklyVolumeChart weeks={SAMPLE_WEEKLY_VOLUME} />
+
+          <p className="text-center text-sm text-neutral-500 dark:text-neutral-400">
+            Plus per-exercise personal records, a filterable dashboard, and an
+            AI coach that answers questions about your training — powered by
+            your own API key or a local model.
+          </p>
+        </section>
+      )}
 
       {workoutCount !== undefined && workoutCount > 0 && (
         <section
