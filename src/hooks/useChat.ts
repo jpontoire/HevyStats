@@ -1,9 +1,8 @@
 import { useCallback, useRef, useState } from 'react'
-import Anthropic from '@anthropic-ai/sdk'
 import { db } from '../db/db'
 import { formatCoachContext } from '../utils/coachContext'
-
-const MODEL = 'claude-opus-4-8'
+import { streamChat } from '../llm/streamChat'
+import type { ChatTurn, LlmConfig } from '../llm/types'
 
 const SYSTEM_PROMPT = `You are HevyStats Coach, a strength training assistant built into HevyStats, a local-first dashboard that analyzes the user's full Hevy workout history.
 
@@ -17,11 +16,7 @@ Rules:
 
 `
 
-export interface ChatMessage {
-  role: 'user' | 'assistant'
-  content: string
-}
-
+export type ChatMessage = ChatTurn
 export type ChatStatus = 'idle' | 'streaming' | 'error'
 
 async function buildSystemPrompt(): Promise<string> {
@@ -33,24 +28,8 @@ async function buildSystemPrompt(): Promise<string> {
   return SYSTEM_PROMPT + formatCoachContext(workouts, exercises, sets)
 }
 
-function describeError(cause: unknown): string {
-  if (cause instanceof Anthropic.AuthenticationError) {
-    return 'Invalid API key. Check it in the settings below.'
-  }
-  if (cause instanceof Anthropic.RateLimitError) {
-    return 'Rate limit reached on your Anthropic account. Try again in a minute.'
-  }
-  if (cause instanceof Anthropic.APIConnectionError) {
-    return 'Could not reach the Anthropic API. Check your connection.'
-  }
-  if (cause instanceof Anthropic.APIError) {
-    return `Anthropic API error (${cause.status}): ${cause.message}`
-  }
-  return cause instanceof Error ? cause.message : String(cause)
-}
-
-/** Streaming BYOK chat with the coach. The key never leaves the browser. */
-export function useChat(apiKey: string) {
+/** Streaming BYOK chat with the coach, provider-agnostic. */
+export function useChat(config: LlmConfig | null) {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [status, setStatus] = useState<ChatStatus>('idle')
   const [error, setError] = useState<string | null>(null)
@@ -62,7 +41,7 @@ export function useChat(apiKey: string) {
   const send = useCallback(
     async (text: string) => {
       const trimmed = text.trim()
-      if (!trimmed || !apiKey) return
+      if (!trimmed || !config) return
 
       setStatus('streaming')
       setError(null)
@@ -77,42 +56,21 @@ export function useChat(apiKey: string) {
       try {
         systemRef.current ??= await buildSystemPrompt()
 
-        // BYOK: the user's own key, sent only to api.anthropic.com
-        const client = new Anthropic({ apiKey, dangerouslyAllowBrowser: true })
-        const stream = client.messages.stream({
-          model: MODEL,
-          max_tokens: 64000,
-          thinking: { type: 'adaptive' },
-          system: [
-            {
-              type: 'text',
-              text: systemRef.current,
-              cache_control: { type: 'ephemeral' },
-            },
-          ],
-          messages: history.map((m) => ({ role: m.role, content: m.content })),
+        const answer = await streamChat({
+          config,
+          system: systemRef.current,
+          messages: history,
+          onDelta: (delta) => {
+            setMessages((prev) => {
+              const last = prev[prev.length - 1]
+              if (!last || last.role !== 'assistant') return prev
+              return [
+                ...prev.slice(0, -1),
+                { role: 'assistant', content: last.content + delta },
+              ]
+            })
+          },
         })
-
-        stream.on('text', (delta) => {
-          setMessages((prev) => {
-            const last = prev[prev.length - 1]
-            if (!last || last.role !== 'assistant') return prev
-            return [
-              ...prev.slice(0, -1),
-              { role: 'assistant', content: last.content + delta },
-            ]
-          })
-        })
-
-        const final = await stream.finalMessage()
-        const answer = final.content
-          .filter((block) => block.type === 'text')
-          .map((block) => block.text)
-          .join('')
-
-        if (final.stop_reason === 'refusal' && !answer) {
-          throw new Error('The model declined to answer this request.')
-        }
 
         messagesRef.current = [
           ...history,
@@ -124,11 +82,11 @@ export function useChat(apiKey: string) {
         // Drop the empty assistant placeholder but keep the user's message
         messagesRef.current = history
         setMessages(history)
-        setError(describeError(cause))
+        setError(cause instanceof Error ? cause.message : String(cause))
         setStatus('error')
       }
     },
-    [apiKey],
+    [config],
   )
 
   const reset = useCallback(() => {

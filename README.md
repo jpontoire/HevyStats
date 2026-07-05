@@ -7,7 +7,7 @@ Privacy-first, local web dashboard designed to analyze and extend your historica
 - **100% local-first**: the CSV is parsed in the browser and stored in IndexedDB. Nothing is sent to a backend.
 - **Drag & Drop** the CSV export to import the entire history at once.
 - **Advanced statistics** on strength and volume (progression, estimated 1RM, per-exercise trends...).
-- **BYOK AI chatbot**: the user provides their own Anthropic API key, used only from their browser to query `api.anthropic.com` directly.
+- **BYOK AI chatbot**: the user brings their own LLM — Anthropic (Claude), OpenAI, a local Ollama, or any OpenAI-compatible endpoint. Keys and endpoints are stored in the browser only and called directly from it.
 - **Your data stays yours**: export a JSON backup or delete everything in one click.
 
 ## Tech stack
